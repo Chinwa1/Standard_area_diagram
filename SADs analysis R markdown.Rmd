@@ -1,0 +1,1274 @@
+---
+title: "SADs analysis"
+author: "Chinwa"
+date: "2024-07-08"
+output: html_document
+---
+```{r}
+setwd("E:/individual_leaf")
+```
+
+```{r}
+agreements=read.csv("E:/individual_leaf/without_SAD.csv",header = TRUE)
+attach(agreements)
+```
+
+```{r}
+library(epiR)
+library(irr)
+library(cowplot)
+library(ggplot2)
+library(glue)
+library(ggtext)
+library(tidyverse)
+library(gridExtra)
+library(ggpubr)
+```
+
+```{r}
+####set the seed
+set.seed(seed=1991)
+```
+
+```{r}
+attach(actuals)
+aga=data.frame(actuals$actual,actuals$UN)
+```
+
+```{r}
+a=epi.ccc(actual,actuals$UN,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(Actual ~ Without_SAD1)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+
+a4=ggplot(data = aga, aes(x = Actual, y = Without_SAD1)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+a4
+ggsave("a4.JPG",width =8,height = 10,dpi = 100 )
+```
+
+
+```{r}
+aga1=data.frame(Actual,With_SAD1)
+a1=epi.ccc(Actual,With_SAD1,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a1$rho.c
+a1$C.b
+a1$l.shift
+a1$s.shift
+```
+
+```{r}
+a11=data.frame(lab = paste("CCC: ",    round(a1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a1$rho.c[,2], digits = 2), " - ",
+   round(a1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a21 <- lm(Actual ~ With_SAD1)
+alpha <- summary(a21)$coefficients[1,1]
+beta <-  summary(a21)$coefficients[2,1]
+a31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a21)
+```
+
+```{r}
+library(ggplot2)
+
+a41=ggplot(data = aga1, aes(x = Actual, y = With_SAD1)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "")+ theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 0.5, y = 2.95, label = a11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+a41
+```
+
+```{r}
+agb1=data.frame(Actual,Without_SAD2)
+b1=epi.ccc(Actual,Without_SAD2,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+b1$rho.c
+b1$l.shift
+b1$s.shift
+b1$C.b
+```
+
+```{r}
+b11=data.frame(lab = paste("CCC: ",    round(b1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(b1$rho.c[,2], digits = 2), " - ",
+   round(b1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+b21 <- lm(Actual ~ Without_SAD2)
+alpha <- summary(b21)$coefficients[1,1]
+beta <-  summary(b21)$coefficients[2,1]
+b31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(b21)
+```
+
+```{r}
+library(ggplot2)
+
+b41=ggplot(data = agb1, aes(x = Actual, y = Without_SAD2)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = b31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = b11, x = 0.5, y = 2.95, label = b11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+b41
+```
+
+```{r}
+agb2=data.frame(Actual,With_SAD2)
+b2=epi.ccc(Actual,With_SAD2,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+b2$rho.c
+b2$l.shift
+b2$s.shift
+b2$C.b
+```
+
+```{r}
+b12=data.frame(lab = paste("CCC: ",    round(b2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(b2$rho.c[,2], digits = 2), " - ",
+   round(b2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+b22 <- lm(Actual ~ With_SAD2)
+alpha <- summary(b22)$coefficients[1,1]
+beta <-  summary(b22)$coefficients[2,1]
+b32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(b22)
+```
+
+```{r}
+library(ggplot2)
+
+b42=ggplot(data = agb2, aes(x = Actual, y = With_SAD2)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = b32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = b12, x = 0.5, y = 2.95, label = b12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+b42
+```
+
+```{r}
+agc1=data.frame(Actual,Without_SAD3)
+c1=epi.ccc(Actual,Without_SAD3,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+c1$rho.c
+c1$s.shift
+c1$l.shift
+c1$C.b
+```
+
+```{r}
+c11=data.frame(lab = paste("CCC: ",    round(c1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(c1$rho.c[,2], digits = 2), " - ",
+   round(c1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+c21 <- lm(Actual ~ Without_SAD3)
+alpha <- summary(c21)$coefficients[1,1]
+beta <-  summary(c21)$coefficients[2,1]
+c31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(c21)
+```
+
+```{r}
+library(ggplot2)
+
+c41=ggplot(data = agc1, aes(x = Actual, y = Without_SAD3)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = c31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+    theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = c11, x = 0.5, y = 2.95, label = c11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+c41
+```
+
+```{r}
+agc2=data.frame(Actual,With_SAD3)
+c2=epi.ccc(Actual,With_SAD3,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+c2$rho.c
+c2$s.shift
+c2$l.shift
+c2$C.b
+```
+
+```{r}
+c12=data.frame(lab = paste("CCC: ",    round(c2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(c2$rho.c[,2], digits = 2), " - ",
+   round(c2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+c22 <- lm(Actual ~ With_SAD3)
+alpha <- summary(c22)$coefficients[1,1]
+beta <-  summary(c22)$coefficients[2,1]
+c32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(c22)
+```
+
+```{r}
+library(ggplot2)
+
+c42=ggplot(data = agc2, aes(x = Actual, y = With_SAD3)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = c32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+   theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+ scale_y_continuous(limits = c(0,100), name = "") +
+  geom_text(data = c12, x = 0.5, y = 2.95, label = c12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+c42
+```
+
+```{r}
+agd1=data.frame(Actual,Without_SAD4)
+d1=epi.ccc(Actual,Without_SAD4,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+d1$rho.c
+d1$C.b
+d1$s.shift
+d1$l.shift
+```
+
+```{r}
+d11=data.frame(lab = paste("CCC: ",    round(d1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(d1$rho.c[,2], digits = 2), " - ",
+   round(d1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+d21 <- lm(Actual ~ Without_SAD4)
+alpha <- summary(d21)$coefficients[1,1]
+beta <-  summary(d21)$coefficients[2,1]
+d31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(d21)
+```
+
+```{r}
+library(ggplot2)
+
+d41=ggplot(data = agd1, aes(x = Actual, y = Without_SAD4)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = d31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+   theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = d11, x = 0.5, y = 2.95, label = d11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+d41
+```
+
+```{r}
+agd2=data.frame(Actual,With_SAD4)
+d2=epi.ccc(Actual,With_SAD4,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+d2$rho.c
+d2$C.b
+d2$s.shift
+d2$l.shift
+```
+
+```{r}
+d12=data.frame(lab = paste("CCC: ",    round(d2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(d2$rho.c[,2], digits = 2), " - ",
+   round(d2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+d22 <- lm(Actual ~ With_SAD4)
+alpha <- summary(d22)$coefficients[1,1]
+beta <-  summary(d22)$coefficients[2,1]
+d32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(d22)
+```
+
+```{r}
+library(ggplot2)
+
+d42=ggplot(data = agd2, aes(x = Actual, y = With_SAD4)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = d32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = d12, x = 0.5, y = 2.95, label = d12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+d42
+```
+
+```{r}
+age1=data.frame(Actual,Without_SAD5)
+e1=epi.ccc(Actual,Without_SAD5,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+e1$rho.c
+e1$C.b
+e1$s.shift
+e1$l.shift
+```
+
+```{r}
+e11=data.frame(lab = paste("CCC: ",    round(e1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(e1$rho.c[,2], digits = 2), " - ",
+   round(e1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+e21 <- lm(Actual ~ Without_SAD5)
+alpha <- summary(e21)$coefficients[1,1]
+beta <-  summary(e21)$coefficients[2,1]
+e31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(e21)
+```
+
+```{r}
+library(ggplot2)
+
+e41=ggplot(data = age1, aes(x = Actual, y = Without_SAD5)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = e31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+ theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+ geom_text(data = e11, x = 0.5, y = 2.95, label = e11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+e41
+```
+
+```{r}
+age2=data.frame(Actual,With_SAD5)
+e2=epi.ccc(Actual,With_SAD5,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+e2$rho.c
+e2$C.b
+e2$s.shift
+e2$l.shift
+```
+
+```{r}
+e12=data.frame(lab = paste("CCC: ",    round(e2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(e2$rho.c[,2], digits = 2), " - ",
+   round(e2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+e22 <- lm(Actual ~ With_SAD5)
+alpha <- summary(e22)$coefficients[1,1]
+beta <-  summary(e22)$coefficients[2,1]
+e32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(e22)
+```
+
+```{r}
+library(ggplot2)
+
+e42=ggplot(data = age1, aes(x = Actual, y = With_SAD5)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = e32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+scale_y_continuous(limits = c(0,100), name = "") +
+  geom_text(data = e12, x = 0.5, y = 2.95, label = e12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+e42
+```
+
+```{r}
+agf1=data.frame(Actual,Without_SAD6)
+f1=epi.ccc(Actual,Without_SAD6,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+f1$rho.c
+f1$C.b
+f1$s.shift
+f1$l.shift
+```
+
+```{r}
+f11=data.frame(lab = paste("CCC: ",    round(f1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(f1$rho.c[,2], digits = 2), " - ",
+   round(f1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+f21 <- lm(Actual ~ Without_SAD6)
+alpha <- summary(f21)$coefficients[1,1]
+beta <-  summary(f21)$coefficients[2,1]
+f31 <- data.frame(alpha, beta)
+```
+
+
+```{r}
+summary(f21)
+```
+```{r}
+library(ggplot2)
+
+f41=ggplot(data = agf1, aes(x = Actual, y = Without_SAD6)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = f31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = f11, x = 0.5, y = 2.95, label = f11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+f41
+```
+
+```{r}
+agf2=data.frame(Actual,With_SAD6)
+f2=epi.ccc(Actual,With_SAD6,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+f2$rho.c
+f2$s.shift
+f2$l.shift
+f2$C.b
+```
+
+```{r}
+f12=data.frame(lab = paste("CCC: ",    round(f2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(f2$rho.c[,2], digits = 2), " - ",
+   round(f2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+f22 <- lm(Actual ~ With_SAD6)
+alpha <- summary(f22)$coefficients[1,1]
+beta <-  summary(f22)$coefficients[2,1]
+f32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(f22)
+```
+
+```{r}
+library(ggplot2)
+
+f42=ggplot(data = agf2, aes(x = Actual, y = With_SAD6)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = f32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+scale_y_continuous(limits = c(0,100), name = "") +
+  geom_text(data = f12, x = 0.5, y = 2.95, label = f12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+f42
+```
+
+```{r}
+agg1=data.frame(Actual,Without_SAD7)
+g1=epi.ccc(Actual,Without_SAD7,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+g1$rho.c
+g1$s.shift
+g1$l.shift
+g1$C.b
+```
+
+```{r}
+g11=data.frame(lab = paste("CCC: ",    round(g1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(g1$rho.c[,2], digits = 2), " - ",
+   round(g1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+g21 <- lm(Actual ~ Without_SAD7)
+alpha <- summary(g21)$coefficients[1,1]
+beta <-  summary(g21)$coefficients[2,1]
+g31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(g21)
+```
+
+```{r}
+library(ggplot2)
+
+g41=ggplot(data = agg1, aes(x = Actual, y = Without_SAD7)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = g31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = g11, x = 0.5, y = 2.95, label = g11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+g41
+```
+
+```{r}
+agg2=data.frame(Actual,With_SAD7)
+g2=epi.ccc(Actual,With_SAD7,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+g2$rho.c
+g2$s.shift
+g2$l.shift
+g2$C.b
+```
+
+```{r}
+g12=data.frame(lab = paste("CCC: ",    round(g2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(g2$rho.c[,2], digits = 2), " - ",
+   round(g2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+g22 <- lm(Actual ~ With_SAD7)
+alpha <- summary(g22)$coefficients[1,1]
+beta <-  summary(g22)$coefficients[2,1]
+g32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(g22)
+```
+
+```{r}
+library(ggplot2)
+
+g42=ggplot(data = agg1, aes(x = Actual, y = With_SAD7)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = g32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = g12, x = 0.5, y = 2.95, label = g12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+g42
+```
+
+
+```{r}
+agh1=data.frame(Actual,Without_SAD8)
+h1=epi.ccc(Actual,Without_SAD8,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+h1$rho.c
+h1$s.shift
+h1$l.shift
+h1$C.b
+```
+
+```{r}
+h11=data.frame(lab = paste("CCC: ",    round(h1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(h1$rho.c[,2], digits = 2), " - ",
+   round(h1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+h21 <- lm(Actual ~ Without_SAD8)
+alpha <- summary(h21)$coefficients[1,1]
+beta <-  summary(h21)$coefficients[2,1]
+h31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(h21)
+```
+
+```{r}
+library(ggplot2)
+
+h41=ggplot(data = agh1, aes(x = Actual, y = Without_SAD8)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = h31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+ theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+ geom_text(data = h11, x = 0.5, y = 2.95, label = h11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+g41
+```
+
+```{r}
+agh2=data.frame(Actual,With_SAD8)
+h2=epi.ccc(Actual,With_SAD8,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+h2$rho.c
+h2$s.shift
+h2$l.shift
+h2$C.b
+```
+
+```{r}
+h12=data.frame(lab = paste("CCC: ",    round(h2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(h2$rho.c[,2], digits = 2), " - ",
+   round(h2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+h22 <- lm(Actual ~ With_SAD8)
+alpha <- summary(h22)$coefficients[1,1]
+beta <-  summary(h22)$coefficients[2,1]
+h32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(h22)
+```
+
+```{r}
+library(ggplot2)
+
+h42=ggplot(data = agh2, aes(x = Actual, y = With_SAD8)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = h32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+ theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+ geom_text(data = h12, x = 0.5, y = 2.95, label = h12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+g42
+```
+
+```{r}
+agi1=data.frame(Actual,Without_SAD9)
+i1=epi.ccc(Actual,Without_SAD9,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+i1$rho.c
+i1$s.shift
+i1$l.shift
+i1$C.b
+```
+
+```{r}
+i11=data.frame(lab = paste("CCC: ",    round(i1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(i1$rho.c[,2], digits = 2), " - ",
+   round(i1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+i21 <- lm(Actual ~ Without_SAD9)
+alpha <- summary(i21)$coefficients[1,1]
+beta <-  summary(i21)$coefficients[2,1]
+i31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(i21)
+```
+
+```{r}
+library(ggplot2)
+
+i41=ggplot(data = agi1, aes(x = Actual, y = Without_SAD9)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = i31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+ theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+ geom_text(data = i11, x = 0.5, y = 2.95, label = i11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+i41
+```
+
+```{r}
+agi2=data.frame(Actual,With_SAD9)
+i2=epi.ccc(Actual,With_SAD9,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+i2$rho.c
+i2$s.shift
+i2$l.shift
+i2$C.b
+```
+
+```{r}
+i12=data.frame(lab = paste("CCC: ",    round(i2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(i2$rho.c[,2], digits = 2), " - ",
+   round(i2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+i22 <- lm(Actual ~ With_SAD9)
+alpha <- summary(i22)$coefficients[1,1]
+beta <-  summary(i22)$coefficients[2,1]
+i32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(i22)
+```
+
+```{r}
+library(ggplot2)
+
+i42=ggplot(data = agi2, aes(x = Actual, y = With_SAD9)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = i32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = i12, x = 0.5, y = 2.95, label = i12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+i42
+```
+
+```{r}
+agj1=data.frame(Actual,Without_SAD10)
+j1=epi.ccc(Actual,Without_SAD10,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+j1$rho.c
+j1$s.shift
+j1$l.shift
+j1$C.b
+```
+
+```{r}
+j11=data.frame(lab = paste("CCC: ",    round(j1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(j1$rho.c[,2], digits = 2), " - ",
+   round(j1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+j21 <- lm(Actual ~ Without_SAD10)
+alpha <- summary(j21)$coefficients[1,1]
+beta <-  summary(j21)$coefficients[2,1]
+j31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(j21)
+```
+
+```{r}
+library(ggplot2)
+
+j41=ggplot(data = agj1, aes(x = Actual, y = Without_SAD10)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = j31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+ theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+ geom_text(data = j11, x = 0.5, y = 2.95, label = j11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+j41
+```
+
+```{r}
+agj2=data.frame(Actual,With_SAD10)
+j2=epi.ccc(Actual,With_SAD10,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+j2$rho.c
+j2$s.shift
+j2$l.shift
+j2$C.b
+```
+
+```{r}
+j12=data.frame(lab = paste("CCC: ",    round(j2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(j2$rho.c[,2], digits = 2), " - ",
+   round(j2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+j22 <- lm(Actual ~ With_SAD10)
+alpha <- summary(j22)$coefficients[1,1]
+beta <-  summary(j22)$coefficients[2,1]
+j32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(j22)
+```
+
+```{r}
+library(ggplot2)
+
+j42=ggplot(data = agj2, aes(x = Actual, y = With_SAD10)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = j32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = j12, x = 0.5, y = 2.95, label = j12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+j42
+```
+
+```{r}
+agk1=data.frame(Actual,Without_SAD11)
+k1=epi.ccc(Actual,Without_SAD11,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+k1$rho.c
+k1$s.shift
+k1$l.shift
+k1$C.b
+```
+
+```{r}
+k11=data.frame(lab = paste("CCC: ",    round(k1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(k1$rho.c[,2], digits = 2), " - ",
+   round(k1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+k21 <- lm(Actual ~ Without_SAD11)
+alpha <- summary(k21)$coefficients[1,1]
+beta <-  summary(k21)$coefficients[2,1]
+k31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(k21)
+```
+
+```{r}
+library(ggplot2)
+
+k41=ggplot(data = agk1, aes(x = Actual, y = Without_SAD11)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = k31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = k11, x = 0.5, y = 2.95, label = k11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+k41
+```
+
+```{r}
+agk2=data.frame(Actual,With_SAD11)
+k2=epi.ccc(Actual,With_SAD11,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+k2$rho.c
+k2$s.shift
+k2$l.shift
+k2$C.b
+```
+
+```{r}
+k12=data.frame(lab = paste("CCC: ",    round(k2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(k2$rho.c[,2], digits = 2), " - ",
+   round(k2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+k22 <- lm(Actual ~ With_SAD11)
+alpha <- summary(k22)$coefficients[1,1]
+beta <-  summary(k22)$coefficients[2,1]
+k32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(k22)
+```
+```{r}
+library(ggplot2)
+
+k42=ggplot(data = agk2, aes(x = Actual, y = With_SAD11)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = k32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = k12, x = 0.5, y = 2.95, label = k12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+k42
+```
+
+```{r}
+agl1=data.frame(Actual,Without_SAD12)
+l1=epi.ccc(Actual,Without_SAD12,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+l1$rho.c
+l1$s.shift
+l1$l.shift
+l1$C.b
+```
+
+```{r}
+l11=data.frame(lab = paste("CCC: ",    round(l1$rho.c[,1], digits = 2), " (95% CI ", 
+   round(l1$rho.c[,2], digits = 2), " - ",
+   round(l1$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+l21 <- lm(Actual ~ Without_SAD12)
+alpha <- summary(l21)$coefficients[1,1]
+beta <-  summary(l21)$coefficients[2,1]
+l31 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(l21)
+```
+
+```{r}
+library(ggplot2)
+
+l41=ggplot(data = agl1, aes(x = Actual, y = Without_SAD12)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = l31, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = l11, x = 0.5, y = 2.95, label = l11$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+l41
+```
+
+```{r}
+agl2=data.frame(Actual,With_SAD12)
+l2=epi.ccc(Actual,With_SAD12,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+l2$rho.c
+l2$s.shift
+l2$l.shift
+l2$C.b
+```
+
+```{r}
+l12=data.frame(lab = paste("CCC: ",    round(l2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(l2$rho.c[,2], digits = 2), " - ",
+   round(l2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+l22 <- lm(Actual ~ With_SAD12)
+alpha <- summary(l22)$coefficients[1,1]
+beta <-  summary(l22)$coefficients[2,1]
+l32 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(l22)
+```
+
+```{r}
+library(ggplot2)
+
+l42=ggplot(data = agl2, aes(x = Actual, y = With_SAD12)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = l32, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = l12, x = 0.5, y = 2.95, label = l12$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+l42
+```
+
+```{r}
+plot_grid(a4,a41,b41,b42,c41,c42,d41,d42,e41,e42,f41,f42,g41,g42,h41,h42,i41,i42,j41,j42,k41,k42,l41,l42)
+```
+```{r}
+grid.arrange(a4,a41,b41,b42,c41,c42,nrow=3,ncol=2)
+```
+
+###########combined analysis
+```{r}
+comb=read.csv("combined.csv",header=TRUE)
+attach(comb)
+```
+
+```{r}
+library(plyr) # for data transformation
+library(tidyverse) # tidy tools
+library(readxl) # import from excel
+library(epiR) # ccc analysis
+library(ggthemes) # ggplot themes
+library(irr) # icc analysis
+theme_set(theme_light()) # the theme globally
+```
+
+```{r}
+
+```
+
+```{r}
+comb1
+```
+
+```{r}
+comb1=data.frame(Actual,Without_SAD)
+comb2=epi.ccc(Actual,Without_SAD,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+comb2$s.shift
+comb2$l.shift
+comb2$C.b
+comb2$rho.c
+sd(comb2$rho.c)
+summary(comb2$s.shift)
+```
+
+```{r}
+summary(comb2$rho.c)
+```
+
+```{r}
+comb3=data.frame(lab = paste("CCC: ",    round(comb2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(comb2$rho.c[,2], digits = 2), " - ",
+   round(comb2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+comb4 <- lm(Actual ~ Without_SAD)
+alpha <- summary(comb4)$coefficients[1,1]
+beta <-  summary(comb4)$coefficients[2,1]
+comb5 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(comb4)
+```
+
+```{r}
+library(ggplot2)
+
+comb6=ggplot(data = comb1, aes(x = Actual, y = Without_SAD)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = comb5, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "") +
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+geom_text(data = comb5, x = 0.5, y = 2.95, label = comb3$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+```
+
+```{r}
+comb6
+```

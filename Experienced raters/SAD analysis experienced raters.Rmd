@@ -1,0 +1,1990 @@
+---
+title: "SAD analysis experienced"
+author: "Chinwa"
+date: "2024-07-26"
+output: html_document
+---
+
+---
+title: "2nd markdown SADs"
+author: "Chinwa"
+date: "2024-07-20"
+output: html_document
+---
+
+---
+title: "SAD2 delponte type"
+author: "Chinwa"
+date: "2024-07-17"
+output: html_document
+---
+```{r}
+getwd()
+setwd("E:/individual_leaf/Experienced raters")
+```
+
+## Load libraries
+
+```{r, message=FALSE, warning=FALSE}
+library(plyr) # for data transformation
+library(tidyverse) # tidy tools
+library(readxl) # import from excel
+library(epiR) # ccc analysis
+library(ggthemes) # ggplot themes
+library(irr) # icc analysis
+theme_set(theme_light()) # the theme globally
+```
+
+## Data preparation
+
+### Import 
+
+Import the raw data stored in a `xlsx` file using the `read_excel` function of the `readxl` package. 
+
+### Reshape 
+
+We need to reshape the data from the wide (rating systems in different columns) to the long  format where each row is an observation, or a leaf in our case. There are three response variables of interest: 
+
+- actual severity
+- estimate of severity using the different systems
+- error of the estimates (estimate - actual). 
+
+The error variable is created below using the `mutate` function.
+
+```{r message=FALSE, warning=FALSE}
+dat_cls <- read.csv("E:/individual_leaf/Experienced raters/experienced_raters.csv")
+attach(dat_cls)
+View(dat_cls)
+```
+
+```{r}
+dat_sad <- dat_cls %>%
+  gather(assessment, estimate, 4:5) %>%
+  mutate(error = estimate - actual)
+
+View(dat_sad)
+```
+
+### Transform
+
+Since we are using ordinal scales like Horsfall-Barrat (HB) and a 10% linear interval scale (LIN), we need convert the actual and estimates of severity to the corresponding ordinal value. By doing this we can inspect errors associated with the assignment of a wrong score. The new variables will be named: actual_HB, actual_LIN, estimate_HB and estimate_LI`. The `case_when` function is very handy for this task. 
+```{r}
+dat_sad <- dat_sad %>%
+  mutate(actual_LIN = case_when(
+    actual < 10 ~ 1,
+    actual < 20 ~ 2,
+    actual < 30 ~ 3,
+    actual < 40 ~ 4,
+    actual < 50 ~ 5,
+    actual < 60 ~ 6,
+    actual < 70 ~ 7,
+    actual < 80 ~ 8,
+    actual < 90 ~ 9,
+    actual < 100 ~ 10
+  ))
+dat_sad <- dat_sad %>%
+  mutate(estimate_LIN = case_when(
+    estimate < 10 ~ 1,
+    estimate < 20 ~ 2,
+    estimate < 30 ~ 3,
+    estimate < 40 ~ 4,
+    estimate < 50 ~ 5,
+    estimate < 60 ~ 6,
+    estimate < 70 ~ 7,
+    estimate < 80 ~ 8,
+    estimate < 90 ~ 9,
+    estimate < 100 ~ 10
+  ))
+```
+
+## Visualize
+
+We will make use of a range of techniques to visualize the data from all assessment rounds. Firstly, let's explore data for the unaided estimates to check the variability in the innate ability of the raters and types of errors.
+
+
+#### Unaided 
+
+In the unaided assessment the raters provided direct estimates of percent severity without any aid, but only based on their perception of the percent diseased leaf area. Let's inspect the distribution of the values for the unaided estimates of severity across the range of percent scale for all raters combined. Compare them with the actual severity depicted as rugs at the x scale.
+
+```{r}
+actual <- dat_cls %>%
+  filter(rater == 1) %>%
+  dplyr::select(actual)
+dat_sad %>%
+  filter(assessment == "UNexp") %>%
+  dplyr::select(rater, actual, estimate) %>%
+  ggplot(aes(estimate)) +
+  scale_x_continuous(breaks = seq(0, 100, 5)) +
+  #geom_vline(aes(xintercept = actual), linetype = 2, color = "gray80", size = 0.5) +
+  theme_light()+
+  geom_rug(aes(actual))+
+  geom_histogram(bins = 100, color = "white", fill = "gray50") +
+
+  labs(x = "Nearest percent unaided estimate", y = "Frequency")
+```
+
+It is quite apparent that raters tended to round the estimates around a "knot" spaced at 10 percent points. Let's calculate the frequency of the ten most assigned values. The *janitor* package is useful to get the percent as well as the cumulative percent for each value, ordered from high to low.
+
+```{r}
+library(janitor)
+dat_sad %>%
+  filter(assessment == "UNexp") %>%
+  tabyl(estimate) %>%
+  arrange(-n) %>%
+  mutate(cum_percent = cumsum(percent))
+```
+
+Based on the above, ten values accounted for 66% of the assigned values. The top five were 10%, 5%, 30%, 20% and 50%. Apparently, raters intuitively used a mental linear scale to assign severity.
+
+
+### Errors
+
+The plot below shows the relationship between the errors of the estimates, in percent points, and the actual severity values. 
+
+```{r}
+fig3a <- dat_sad %>%
+  filter(assessment == "UNexp") %>%
+  ggplot(aes(actual, error)) +
+   theme_light()+
+  theme(legend.position = "none") +
+  geom_hline(yintercept = 0) +
+  coord_fixed() +xlim(0,100)+
+  scale_x_continuous(breaks = c(0,10,20,30,40,50,60,70,80,90,100)) +ylim(-100,100)+scale_y_continuous(breaks = c(-100,-90,-80,-70,-60,-50,-40,-30,-20,-10,0,10,20,30,40,50,60,70,80,90,100))+
+  geom_point(alpha = 0.5, size = 2.5, shape = 16)+theme(plot.title = element_text(vjust = 0.5))+theme(panel.grid = element_blank())+
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  theme(axis.title.x = element_text(size = 15))+
+  theme(axis.title.y = element_text(size = 15))+
+labs(
+    x = "Actual severity (%)",
+    y = "Absolute error (%)"
+  ) 
+
+fig3a
+```
+Error for individual rater with facet wrap
+```{r}
+s1=dat_sad %>%
+  ggplot(aes(actual, error)) +
+  geom_point(alpha = 0.3, size = 2) +
+  geom_smooth(color = "orange", size = 2, linetype = 1, se = F) +
+  geom_hline(yintercept = 0) +
+   theme_light()+
+  theme(legend.position = "none") +theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  theme(axis.title.x = element_text(size = 15))+
+  theme(axis.title.y = element_text(size = 15))+
+  facet_wrap(~ rater*assessment, ncol = 4,scales = "free") +
+  labs(y = "Absolute error (%)", x = "Actual severity (%)")
+
+
+s1
+```
+
+### Aided 
+
+Let's now check the distribution of the aided estimates for each of the aid systems.
+
+
+```{r}
+knots_aid <- dat_sad %>%
+  filter(assessment != "LINexp") %>%
+  ggplot(aes(estimate)) +
+  #geom_vline(aes(xintercept = actual), linetype = 1, color = "gray", size = 0.5) +
+  geom_rug(aes(actual))+
+  geom_histogram(bins = 100, color = "white", fill = "gray50") +
+   theme_light()+
+   facet_wrap(~ assessment, ncol = 1) +
+ labs(x = "Aided Estimate", y = "Frequency")+
+  scale_x_continuous(breaks = seq(0, 100, 5), limits = c(0, 100))
+knots_aid
+
+
+```
+
+<img src = "figs/knots-aided.png">
+
+When using the H-B scale, all mid-point severity values showed higher frequency for the 4.5% scores. This was expected given the higher frequency of actual values at the lower end of the percent scale.
+
+For the two two-stage assessment, it seems the knots were still preferred by the raters for the range of values within the category. Let's get the frequency of the ten most assigned values after selecting a score following the log for the linear interval. 
+
+First, the log interval scale. The `tabyl` function of the `janitor` package provides a nice output.
+```{r}
+library(janitor)
+dat_sad %>%
+  filter(assessment == "LINexp") %>%
+  tabyl(estimate) %>%
+  arrange(-n) %>%
+  mutate(cum_percent = cumsum(percent)) %>%
+  head(10)
+```
+
+Again, raters tend to round their estimates to a knot or the score of the linear interval scale. Seventy percent of the estimates were comprised of 10 values, with 50%, 5%, 10%, 2%, 20% and 40% contributing to 50% of the estimates. Of those, only 2% and 5% are not cut-off values.
+
+```{r message=FALSE, warning=FALSE}
+fig3b=dat_sad %>%
+  filter(assessment != "UNexp") %>%
+  ggplot(aes(actual, error)) +coord_fixed(1)+
+  xlim(0, 100)+scale_x_continuous(breaks = c(10,20,30,40,50,60,70,80,90,100)) +ylim(-100,25)+scale_y_continuous(breaks = c(-100,-90,-80,-70,-60,-50,-40,-30,-20,-10,0,10,20,30))+
+  geom_point(alpha = 0.3, size = 2) +
+  geom_smooth(color = "orange", size = 1.5, linetype = 1, se = F) +
+  geom_hline(yintercept = 0) +
+   theme_light()+
+  theme(legend.position = "none")+theme(panel.grid = element_blank()) +theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(vjust = 0.5))+
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  theme(axis.title.x = element_text(size = 17))+
+  theme(axis.title.y = element_text(size = 17))+
+labs(y = "Absolute error (%)", x = "Actual severity (%)") 
+fig3b
+```
+Combined raters for all errors
+```{r}
+s4=dat_sad %>%
+  ggplot(aes(actual, error)) +
+  geom_point(alpha = 0.3, size = 2) +coord_fixed()+
+  geom_smooth(color = "orange", size = 2, linetype = 1, se = F) +
+  geom_hline(yintercept = 0) +
+   theme_light()+
+  theme(legend.position = "none") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(vjust = 0.5))+
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  theme(axis.title.x = element_text(size = 17))+
+  theme(axis.title.y = element_text(size = 17))+
+  facet_wrap(~assessment)+
+  labs(y = "Absolute error (%)", x = "Actual severity (%)")
+
+ggsave("s4.JPG",height = 8,width = 8,dpi = 300)
+
+s4
+
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(cowplot)
+library(performance)
+
+```
+
+For most cases, overestimation occurred at values lower than 30% actual severity, especially for the aided estimates using the LIN scale and UN estimates. However, when using the HB scale the overestimation was more consistent across the entire severity range.
+
+## Ordinal data
+
+Now let's see the errors of estimates when using ordinal scales. First, we will summarize the frequency of the correct assignment. Then, we build a contingency table for the estimated versus actual scores and count the proportion of data on the correct class and those nearby.
+Now, we repeat the procedure for the LIN scale.
+
+```{r}
+lin_table <- dat_sad %>%
+  filter(assessment == "LINexp") %>%
+  tabyl(actual_LIN, estimate_LIN) %>%
+  adorn_percentages("row") %>%
+  round(2)
+lin_table
+```
+
+and another heat map.
+
+```{r}
+
+p_lin_table <- lin_table %>%
+  gather(LINexp, value, 2:11) %>%
+  mutate(LINexp = as.numeric(LINexp)) %>%
+  ggplot(aes(actual_LIN, LINexp, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = value), color = "white", size = 3) +
+  scale_y_continuous(breaks = seq(1, 9, 1)) +
+  scale_x_continuous(breaks = seq(1, 9, 1)) +
+  scale_fill_gradient(low = "white", high = "black") +
+  theme_few()+
+  labs(x = "Actual LIN class", fill = "Proportion", y = "Estimated LIN class")
+
+p_lin_table
+```
+
+Here we will make a combo plot with the two graphs using the `plot_grid` function of the `cowplot` package.
+
+```{r message=FALSE, warning=FALSE}
+library(cowplot)
+theme_set(theme_light())
+p1 <- plot_grid(p_hb_table, p_lin_table, align = "hv", ncol = 2, rel_widths = c(1, 1.35), labels = "AUTO")
+```
+
+<img src = "figs/fig5.png">
+
+
+### Agreement stats
+
+
+Here will compute a simple percentage agreement and a weighted Kappa statistics (for ordered categories with quadratic weights) between the estimated and actual ordinal categories.
+
+#### LIN
+
+Percent agreement
+
+
+```{r}
+lin <- dat_sad %>%
+  filter(assessment == "LINexp") %>%
+ dplyr::select(actual_LIN, estimate_LIN)
+
+library(irr)
+agree(lin, tolerance = 8)
+```
+### LIN 
+
+```{r}
+
+LIN_hist <- dat_sad %>%
+  filter(assessment == "LINexp") %>%
+  dplyr::select(estimate, estimate_LIN) %>%
+  gather(class, value, 2) %>%
+  ggplot(aes(estimate)) +
+  geom_histogram(bins = 100, color = "white") +
+  scale_x_continuous(breaks = seq(0, 100, 5), limits = c(0, 100)) +
+   theme_light()+
+  theme(legend.position = "none") +
+  labs(x = "Percent estimate after 10% Linear scale", y = "Frequency")
+LIN_hist
+```
+
+## Concordance analysis
+
+### Lin's statistics 
+
+The Lin's concordance correlation coefficient provides a measure of overall accuracy which takes into account bias correction (closeness to the actual value) and precision (variability in the estimates). Bias correction is calculated from two bias measures: constant bias (location-shift) and systematic bias (scale-shift). The precision is the Pearson's correlation coefficient. The concordance correlation (CCC) is the product of bias correction and precision.
+
+We will use the `epi.ccc` function of the *epiR*  package to obtain the CCC statistics for each of the five assessments.
+
+
+#### Unaided
+
+```{r}
+dat_sads <- dat_sad %>%
+  group_by(rater) %>%
+  filter(assessment == "UNexp")
+ccc_UN <- by(dat_sads, dat_sads$rater, function(dat_sads)
+  epi.ccc(dat_sads$actual, dat_sads$estimate, ci = "z-transform", conf.level = 0.95))
+```
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+UN_pc <- ccc_UN %>%
+  map_df("rho.c") %>%
+  mutate(rater = 1:8) %>%
+  mutate(rater = as.character(rater)) %>%
+  dplyr::select(4, 1)
+
+UN_Cb <- ccc_UN %>%
+  map_df("C.b") %>%
+  gather(rater, Cb)
+
+UN_l.shift <- ccc_UN %>%
+  map_df("l.shift") %>%
+  gather(rater, l.shift)
+
+UN_s.shift <- ccc_UN %>%
+  map_df("s.shift") %>%
+  gather(rater, s.shift)
+
+ccc_UN_df <- left_join(UN_l.shift, UN_s.shift, by = "rater") %>%
+  left_join(., UN_Cb, by = "rater") %>%
+  left_join(., UN_pc, by = "rater") %>%
+  mutate(r = est * Cb) %>%
+  mutate(rater = as.numeric(rater)) %>%
+  mutate(method = "UNexp")
+write.csv(ccc_UN_df,"means for experienced raters.csv")
+```
+
+#### LIN 
+
+```{r}
+library(irr)
+dat_sad_estimate_LIN <- dat_sad %>%
+  group_by(rater) %>%
+  filter(assessment == "LINexp")
+ccc_estimate_LIN <- by(dat_sad_estimate_LIN, dat_sad_estimate_LIN$rater, function(dat_sad_estimate_LIN)
+  epi.ccc(dat_sad_estimate_LIN$actual, dat_sad_estimate_LIN$estimate, ci = "z-transform", conf.level = 0.95))
+```
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+estimate_LIN_pc <- ccc_estimate_LIN %>%
+  map_df("rho.c") %>%
+  mutate(rater = 1:8) %>%
+  mutate(rater = as.character(rater)) %>%
+  dplyr::select(4, 1)
+
+estimate_LIN_Cb <- ccc_estimate_LIN %>%
+  map_df("C.b") %>%
+  gather(rater, Cb)
+
+estimate_LIN_l.shift <- ccc_estimate_LIN %>%
+  map_df("l.shift") %>%
+  gather(rater, l.shift)
+
+estimate_LIN_s.shift <- ccc_estimate_LIN %>%
+  map_df("s.shift") %>%
+  gather(rater, s.shift)
+
+ccc_estimate_LIN_df <- left_join(estimate_LIN_l.shift, estimate_LIN_s.shift, by = "rater") %>%
+  left_join(., estimate_LIN_Cb, by = "rater") %>%
+  left_join(., estimate_LIN_pc, by = "rater") %>%
+  mutate(r = est * Cb) %>%
+  mutate(rater = as.numeric(rater)) %>%
+  mutate(method = "LINexp")
+write.csv(ccc_estimate_LIN_df,"means for experienced raters with aid.csv")
+```
+
+#### Combined all data
+
+We created the five `tibbles` and now we combine everything in a same tibble. The `rbind` function of the base R does the job.
+
+```{r}
+
+ccc_all <- rbind(
+  ccc_UN_df,
+  ccc_estimate_LIN_df)
+ccc_all
+```
+
+Note that the data in `ccc_all` are in the wide format, where each statistics is shown in a different column. We will change it to the long format using the `gather` function.
+
+```{r}
+write.csv(ccc_all,"Correlation coefficients for experienced raters.csv")
+```
+
+```{r}
+ccc <- ccc_all %>%
+  gather(stat, coef, 2:6)
+ccc
+```
+
+### Baseline accuracy
+
+We will produce a plot to depict the relationship between the bias coefficient and the Pearson's coefficient for the unaided estimates. We want to depict the differences in accuracy among the raters while visualizing the three coefficients, including the concordance correlation.
+
+We will filter the `UN` estimates and not use the two components of bias.
+
+```{r}
+
+UN_CCC <- ccc %>%
+  filter(
+    method == "UNexp",
+    stat != "l.shift",
+    stat != "s.shift"
+  ) %>%
+  dplyr::select(rater, stat, coef) %>%
+  arrange(desc(coef))
+
+UN_CCC2 <- UN_CCC %>%
+  spread(stat, coef)
+```
+
+```{r}
+UN_CCC2
+```
+
+Now a linear model for the relationship between `Cb` and `r`. We extract the correlation coefficient of the relationship.
+
+```{r}
+linear_model <- function(df) {
+  lm(
+    Cb ~ r,
+    data = UN_CCC2
+  )
+}
+modelo <- UN_CCC2 %>%
+  linear_model()
+sqrt(summary(modelo)$r.squared)
+```
+
+Now the plot for the manuscript.
+
+```{r message=FALSE, warning=FALSE}
+fig4c <- UN_CCC %>%
+  spread(stat, coef) %>%
+  ggplot(aes(Cb, r, color = est)) +
+  geom_point(size = 4) +
+  scale_color_gradient(low = "grey80", high = "grey10") +
+  geom_text(aes(label = rater), color = "white", size = 2.5) +
+  ylim(0.09, 1) +
+  xlim(0.09, 1) +
+   theme_light()+
+  coord_fixed() +
+  labs(color = "Lin's coef.", y = "Pearson's coefficient ", x = "Bias coefficient") +
+  annotate("text", label = "r = 0.95", x = 0.58, y = 0.99, size = 4) 
+fig4c
+```
+0
+```{r message=FALSE, warning=FALSE}
+library(cowplot)
+theme_set(theme_light())
+fig4 <- plot_grid(fig4a, fig4b, fig4c,align = "hv", ncol = 2, rel_widths = c(1, 1.44), labels = "AUTO")
+ggsave("fig4.JPG", fig4, width = 5.5, dpi = 600)
+```
+
+## Hypothesis tests
+
+Here our goal is to compare CCC statistics among the four rating systems. We will assume the raters used in the study constitute a random sample of raters with different abilities for estimating disease severity. We will fit a multi-level (mixed) model using the *lme4* package and compare means using the *emmeans* package. 
+
+In the model, the rating systems are fixed effects and raters are random effects. A dummy variable representing unaided and aided assessment was created and added as random effects to account for the dependency because the same raters repeated the assessment based on the different systems.
+
+We need to prepare the data for this analysis. First, let's reshape the data to  wide format so we can fit the model separately for each Lin's CCC statistics. We will also create the variable with the names of the methods.
+
+```{r}
+ccc2 <- ccc %>%
+  filter(stat != "ccc.lower") %>%
+  filter(stat != "ccc.upper") %>%
+  spread(stat, coef)
+
+ccc2$method2 <- ifelse(ccc2$method == "UNexp", "UNAIDED","AIDED")
+```
+
+We want to check whether baseline accuracy influence the results. Let's create a new data set for the categories or groups of raters according to their baseline accuracy using the `case_when` function again and the `left_join` to combine the new data set with the one with all variables. 
+
+```{r}
+ccc3 <- ccc2 %>%
+  filter(method == "UNexp") %>%
+  mutate(baseline_class = case_when(
+    est < 0.8 ~ "Poor",
+    est < 0.9 ~ "Fair",
+    est < 1 ~ "Good"
+  ))
+ccc4 <- ccc3 %>% dplyr::select(rater, baseline_class)
+ccc5 <- left_join(ccc2, ccc4, by = "rater")
+```
+
+We need a trick here for ordering the categories how we want them appearing in the plot.
+
+```{r}
+
+# ordering the factor levels for the plot
+ccc5$baseline_class <- factor(ccc5$baseline_class, levels = c("Poor", "Fair", "Good"))
+```
+
+Rename the levels of method variable using `revalue` function of `plyr`. 
+
+```{r}
+# rename the variables
+library(plyr)
+library(tidyselect)
+library(tidymodels)
+library(tidyr)
+library(tidylog)
+ccc5$method <- revalue(ccc5$method, c(
+  "estimate_LIN" = "LIN"))
+library(dplyr) # to avoid conflict we reload dplyr
+```
+
+Now we can produce the plot 
+
+```{r}
+fig5a=ccc5 %>%
+  ggplot(aes(method, est)) +
+  geom_boxplot() +
+  facet_wrap(~ baseline_class) +
+  labs(x = "Rating system", y = "Lin's CCC") +
+   theme_light()+
+  theme(axis.text.x = element_text(angle = 0, hjust = 1)) 
+fig5a
+```
+
+Effect of baseline accuracy on bias coefficient
+
+```{r}
+fig5b=ccc5 %>%
+  ggplot(aes(method, Cb)) +
+  geom_boxplot() +
+  facet_wrap(~ baseline_class) +
+  labs(x = "Rating system", y = "Bias coefficient") +
+   theme_light()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+fig5b
+```
+
+Effect on precision by rater group
+
+```{r}
+fig5c=ccc5 %>%
+  ggplot(aes(method, r)) +
+  geom_boxplot() +
+   theme_light()+
+  facet_wrap(~ baseline_class) +
+  labs(x = "Rating system", y = "Person's coefficient") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+fig5c
+```
+
+```{r}
+fig5s=plot_grid(fig5a,fig5b,fig5c,ncol = 2,nrow = 2)
+ggsave("fig5c.JPG",  height=8,width=7,dpi = 300)
+fig5s
+```
+
+### Lin's CCC
+
+We are now ready to fit the mixed model to Lin's statistics data.
+
+
+```{r message=FALSE, warning=FALSE}
+library(lme4)
+library(lmerTest)
+library(performance)
+```
+
+```{r message=FALSE, warning=FALSE}
+library(lme4)
+library(lmerTest)
+mix_Cb <- lm(l.shift ~  method+rater, data = ccc5)
+summary(mix_Cb)
+```
+summary(mix_pc)
+```{r message=FALSE, warning=FALSE}
+library(lme4)
+library(lmerTest)
+library(performance)
+mix_pc <- lmer(est ~ method + (1|rater), data = ccc5)
+```
+Summary of the model and significance.
+
+```{r message=FALSE, warning=FALSE}
+summary(mix_pc)
+library(car)
+summary(anova(mix_pc))
+```
+
+Now the `lsmeans` estimates using `emmeans` package.
+
+```{r}
+library(emmeans)
+library(tidyselect)
+library(MASS)
+library(tidymodels)
+library(dplyr)
+library(multcomp)
+library(multcompView)
+mean_pc <- emmeans(mix_pc, ~ method)
+df_pc <- cld(mean_pc)
+df_pc <- df_pc %>%
+dplyr::select(method, emmean, .group) %>%
+mutate(stat = "pc")
+```
+
+### Bias coefficient
+
+```{r}
+# Bc
+mix_Cb <- lmer(Cb ~ method + (1 | rater), data = ccc5)
+```
+
+```{r}
+summary(mix_Cb)
+```
+
+```{r}
+mean_Cb <- emmeans(mix_Cb, ~ method)
+df_Cb <- cld(mean_Cb)
+df_Cb <- df_Cb %>%
+  dplyr::select(method, emmean, .group) %>%
+  mutate(stat = "Cb")
+df_Cb
+```
+
+```{r}
+summary(mix_Cb)
+Anova(mix_Cb)
+```
+
+### Precision
+
+```{r}
+# r
+mix_r <- lmer(r ~ method + (1 | rater), data = ccc5)
+
+summary(mix_r)
+Anova(mix_r)
+```
+
+```{r}
+mean_r <- emmeans(mix_r, ~ method)
+df_r <- cld(mean_r)
+df_r <- df_r %>%
+  dplyr::select(method, emmean, .group) %>%
+  mutate(stat = "r")
+mean_r
+```
+
+### location-shift
+```{r}
+# l.shift
+mix_l.shift <- lmer(l.shift ~ method + (1| rater), data = ccc5)
+summary(mix_l.shift)
+Anova(mix_l.shift)
+mix_l.shift
+```
+
+```{r}
+mean_l.shift <- emmeans(mix_l.shift, ~ method)
+df_l.shift <- cld(mean_l.shift)
+df_l.shift <- df_l.shift %>%
+  dplyr::select(method, emmean, .group) %>%
+  mutate(stat = "l.shift")
+mean_l.shift
+```
+
+###Scale-shift
+
+```{r}
+mix_s.shift <- lmer(s.shift ~ method + (1 | rater), data = ccc5)
+summary(mix_s.shift)
+```
+
+```{r}
+library(tidyselect)
+mean_s.shift <- emmeans(mix_s.shift, ~ method)
+df_s.shift <- cld(mean_s.shift)
+df_s.shift <- df_s.shift %>%
+  dplyr::select(method, emmean, .group) %>%
+  mutate(stat = "s.shift")
+mean_s.shift
+```
+
+### CCC summary
+
+We will combine all statistics and produce a table with the results including the means separation test.
+
+```{r}
+
+df_all <- rbind(df_pc, df_r, df_Cb, df_s.shift, df_l.shift) %>%
+  mutate(emmean = round(as.numeric(emmean), 2))
+write.csv(df_all,"emmeans for experienced.csv")
+
+table12 <- df_all %>%
+  unite(emmean2, emmean, .group, sep = " ") %>%
+  spread(stat, emmean2)
+```
+
+```{r}
+library(knitr)
+library(htmltools)
+knitr::kable(table12,digits = 2)
+table12
+write.csv(table12,"summary of ratings_experienced raters.csv")
+```
+
+### Effect of baseline accuracy
+
+
+Here we want to check whether the effect of the aid was affected by the baseline accuracy of the raters, split into different groups.
+
+```{r}
+# pc
+ccc6 <- ccc5 %>%
+  filter(method != "UNexp")
+m1=table12 %>% filter(method=="UNexp")
+m2=table12 %>% filter(method!="UNexp")
+```
+
+```{r}
+mix_pc_base <- lmer(est ~ method * baseline_class + (1 | rater), data = ccc5)
+summary(mix_pc_base)
+
+Anova(mix_pc_base)
+mean_pc_base <- emmeans(mix_pc_base, ~ method * baseline_class)
+df_pc_base <- cld(mean_pc_base)
+df_pc_base <- df_pc_base %>%
+  dplyr::select(method, baseline_class, emmean, .group) %>%
+  mutate(stat = "pc")
+df_pc_base
+```
+
+```{r}
+mix_cb_base <- lmer(Cb ~ method * baseline_class + (1 | rater), data = ccc5)
+
+summary(mix_cb_base)
+
+Anova(mix_cb_base)
+mean_cb <- emmeans(mix_cb_base, ~ method * baseline_class)
+df_cb <- cld(mean_cb)
+df_cb <- df_cb %>%
+  dplyr::select(method, baseline_class, emmean, .group) %>%
+  mutate(stat = "cb")
+df_cb
+```
+
+```{r}
+# pc
+
+mix_r_base <- lmer(r ~ method * baseline_class + (1 | rater), data = ccc5)
+summary(mix_r_base)
+
+Anova(mix_r_base)
+mean_r_base <- emmeans(mix_r_base, ~ method * baseline_class)
+df_r_base <- cld(mean_r_base)
+df_r_base <- df_r_base %>%
+  dplyr::select(method, baseline_class, emmean, .group) %>%
+  mutate(stat = "r")
+df_r_base
+```
+
+## Interrater reliability
+
+Two methods will be used here. The overall concordance coefficient and the intra-class correlation coefficient.
+
+### UN
+
+```{r}
+library(irr)
+
+sad_UN <- dat_cls %>%
+  dplyr::select(rater, UNexp) %>%
+  group_by(rater) %>%
+  mutate(id = 1:n()) %>%
+  spread(rater,  UNexp) %>%
+  dplyr::select(1:8) %>%
+  data.matrix()
+sad_occc_UN <- epi.occc(sad_UN, na.rm = FALSE, pairs = TRUE)
+sad_icc_UN <- irr::icc(sad_UN, model="twoway", type="agreement")
+sad_occc_UN$occ
+```
+
+### LIN
+
+```{r}
+
+sad_estimate_LIN <- dat_cls %>%
+  dplyr::select(rater, LINexp) %>%
+  group_by(rater) %>%
+  mutate(id = 1:n()) %>%
+  spread(rater, LINexp) %>%
+  dplyr::select(1:8) %>%
+  data.matrix()
+sad_occc_estimate_LIN <- epi.occc(sad_estimate_LIN, na.rm = FALSE, pairs = TRUE)
+sad_icc_estimate_LIN <- irr::icc(sad_estimate_LIN, model = "two", unit = "single", type = "agreement")
+sad_occc_estimate_LIN$occc
+sad_icc_estimate_LIN$value
+```
+
+```{r}
+
+Method <- c("sad_UN",  "sad_estimate_LIN")
+```
+
+```{r}
+OCCC <- c(sad_occc_UN$occc, sad_occc_estimate_LIN$occc)
+```
+
+```{r}
+ICC <- c(sad_icc_UN$value, sad_icc_estimate_LIN$value)
+```
+
+```{r}
+ICC_l <- c(sad_icc_UN$lb,  sad_icc_estimate_LIN$lb)
+```
+
+```{r}
+ICC_u <- c(sad_icc_UN$ub,  sad_icc_estimate_LIN$ub)
+```
+
+```{r}
+table2 <- data.frame(Method, OCCC, ICC, ICC_l, ICC_u)
+table2
+write.csv(table2,"interrater reliability_experienced.csv")
+```
+
+Mean differences and confidence intervals for the parameters of precison, coeeficient bias etc
+
+```{r}
+means=read.csv("E:/individual_leaf/means_experienced.csv",header=TRUE)
+```
+
+```{r}
+attach(means)
+```
+
+```{r}
+cb=DescTools::MeanDiffCI(means$Cb2,means$Cb1,R=2000)
+cb
+sd(cb)
+sd(means$Cb2)
+```
+
+```{r}
+est=DescTools::MeanDiffCI(means$est2,means$est1,R=2000)
+est
+sd(est)
+sd(means$est2)
+```
+
+```{r}
+l_shift=DescTools::MeanDiffCI(means$lshift2,means$lshift1,R=2000)
+l_shift
+sd(l_shift)
+sd(means$lshift1)
+```
+
+```{r}
+r=DescTools::MeanDiffCI(means$r2,means$r1,R=2000)
+r
+sd(r)
+sd(means$r1)
+```
+
+```{r}
+sshift=DescTools::MeanDiffCI(means$sshift2,means$sshift1,R=2000)
+sshift
+sd(sshift2)
+```
+
+```{r}
+sd(means$s_shift_2)
+```
+
+##########combined plots for whole data
+```{r}
+dat_sad_UN <- dat_sad %>%
+  group_by(rater) %>%
+  filter(assessment == "UNexp")
+View(dat_sad_UN)
+```
+
+```{r}
+m2=epi.ccc(dat_sad_UN$actual, dat_sad_UN$estimate, ci = "z-transform", conf.level = 0.95)
+```
+
+```{r}
+rval.labun <- data.frame(lab = paste("CCC: ", 
+   round(m2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(m2$rho.c[,2], digits = 2), " - ",
+   round(m2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+k <- lm(dat_sad_UN$estimate ~ dat_sad_UN$actual)
+alpha <- summary(k)$coefficients[1,1]
+beta <-  summary(k)$coefficients[2,1]
+rval.un <- data.frame(alpha, beta)
+```
+
+ ## Concordance correlation plot:
+## Not run: 
+library(ggplot2)
+individual 
+```{r}
+m2=ggplot(data = dat_sad_UN, aes(x = dat_sad_UN$actual, y = dat_sad_UN$estimate)) +
+  theme_bw() +
+  geom_point()+
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = rval.un, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "Actual severity (%)") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated severity (%)") +
+  geom_text(data = rval.labun, x = 0.5, y = 2.95, label = rval.labun$lab) + 
+  coord_fixed(ratio = 1 / 1)+
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  theme(axis.title.x = element_text(size = 17))+
+  theme(axis.title.y = element_text(size = 17))
+m2
+```
+
+##########combined plots for whole data with SAD
+```{r}
+dat_sad_LIN <- dat_sad %>%
+  group_by(rater) %>%
+  filter(assessment == "LINexp")
+View(dat_sad_LIN)
+```
+
+```{r}
+m2=epi.ccc(dat_sad_LIN$actual, dat_sad_LIN$estimate, ci = "z-transform", conf.level = 0.95)
+```
+
+```{r}
+rval.labun <- data.frame(lab = paste("CCC: ", 
+   round(m2$rho.c[,1], digits = 2), " (95% CI ", 
+   round(m2$rho.c[,2], digits = 2), " - ",
+   round(m2$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+k <- lm(dat_sad_LIN$estimate ~ dat_sad_LIN$actual)
+alpha <- summary(k)$coefficients[1,1]
+beta <-  summary(k)$coefficients[2,1]
+rval.un <- data.frame(alpha, beta)
+```
+
+ ## Concordance correlation plot:
+## Not run: 
+library(ggplot2)
+individual 
+```{r}
+m3=ggplot(data = dat_sad_LIN, aes(x = dat_sad_LIN$actual, y = dat_sad_LIN$estimate)) +
+  theme_bw() +
+  geom_point()+
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = rval.un, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "Actual severity (%)") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated severity (%)") +
+  geom_text(data = rval.labun, x = 0.5, y = 2.95, label = rval.labun$lab) + 
+  coord_fixed(ratio = 1 / 1)+
+  theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  theme(axis.title.x = element_text(size = 17))+
+  theme(axis.title.y = element_text(size = 17))
+m3
+```
+
+
+
+Individual estimate for experienced without aid
+
+#################### assisted ratings with SAD
+```{r}
+library(irr)
+dat_sad_estimate_LIN <- dat_sad %>%
+  group_by(rater) %>%
+  filter(assessment == "LINexp")
+```
+
+```{r}
+m3=epi.ccc(dat_sad_estimate_LIN$actual, dat_sad_estimate_LIN$estimate, ci = "z-transform", conf.level = 0.95)
+```
+
+```{r}
+rval.lab01 <- data.frame(lab = paste("CCC: ", 
+   round(m3$rho.c[,1], digits = 2), " (95% CI ", 
+   round(m3$rho.c[,2], digits = 2), " - ",
+   round(m3$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+z <- lm(dat_sad_estimate_LIN$estimate ~ dat_sad_estimate_LIN$actual)
+
+alpha <- summary(z)$coefficients[1,1]
+
+beta <-  summary(z)$coefficients[2,1]
+
+rval.lm01 <- data.frame(alpha, beta)
+```
+
+```{r}
+library(ggplot2)
+
+m3=ggplot(data = dat_sad_estimate_LIN, aes(x = actual, y = estimate)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = rval.lm01, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "Actual severity (%)") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated severity (%)") +
+  geom_text(data = rval.lab01, x = 0.5, y = 2.95, label = rval.lab01$lab) +facet_wrap(~rater,nrow = 4,scales = "free")
+ggsave("m3.JPG",  height=8,width=7,dpi = 300)
+m3
+```
+
+```{r}
+m6=cowplot::plot_grid(m3,               m2+theme(axis.text.y = element_blank(),                          axis.ticks.y = element_blank(),                        axis.title.y = element_blank()),                         nrow=1,                  labels="auto",
+                   align = "hv")
+ggsave("m6.JPG",  height=8,width=7,dpi = 300)
+m6
+                   
+```
+
+####alternative using ggplot
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+ggarrange(m3+
+            theme(axis.ticks.y = element_blank(),
+                  plot.margin = margin(r=1)),
+          m2+theme(axis.text.y = element_blank(),
+                   axis.ticks.y = element_blank(),
+                   axis.title.y = element_blank(),
+                   plot.margin = margin(r=1)),
+          labels = ("auto"),
+          nrow=1,align = "hv")
+```
+
+Making an agreement based on coefficient of determination R2)
+The library in r software 'performance' is used to compute coefficient of determination, root mean square and AIC values
+
+```{r}
+library(performance)
+```
+
+```{r}
+View(dat_cls)
+```
+
+
+#####For experienced raters with the aid of the SAD
+```{r}
+exp=lmer(LINexp~leaf+(1|rater),dat_cls)
+model_performance(exp)
+```
+For experienced raters without the aid of the SAD
+```{r}
+exp=lm(UNexp~rater+leaf,dat_cls)
+model_performance(exp)
+```
+
+########### without SADindividual rater assessment
+#####R1
+
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 1)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$UNexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$UNexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+r1=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$UNexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+r1
+```
+
+```{r}
+a1
+ggsave("a1 Rater1 UN.JPG",width =8,height = 10,dpi = 00 )
+```
+R2
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 2)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$UNexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$UNexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+r2=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$UNexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+r2
+```
+R3
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 3)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$UNexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$UNexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+r3=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$UNexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+r3
+```
+
+R4
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 4)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$UNexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$UNexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+r4=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$UNexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+r4
+```
+
+R5
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 5)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$UNexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$UNexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+r5=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$UNexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+r5
+```
+
+R6
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 6)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$UNexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$UNexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+r6=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$UNexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+r6
+```
+
+R7
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 7)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$UNexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$UNexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+r7=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$UNexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+r7
+```
+
+R8
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 8)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$UNexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$UNexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+r8=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$UNexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+r8
+```
+
+E1
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 1)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$LINexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$LINexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+E1=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$LINexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+E1
+```
+
+E2
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 2)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$LINexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$LINexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+E2=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$LINexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+E2
+```
+
+E3
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 3)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$LINexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$LINexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+E3=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$LINexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+E3
+```
+
+E4
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 4)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$LINexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$LINexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+E4=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$LINexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+E4
+```
+
+E5
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 5)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$LINexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$LINexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+E5=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$LINexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+E5
+```
+
+E6
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 6)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$LINexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$LINexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+E6=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$LINexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+E6
+```
+
+E7
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 7)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$LINexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$LINexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+E7=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$LINexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+E7
+```
+
+E8
+```{r}
+actuals <- dat_cls %>%
+  filter(rater == 8)
+```
+
+```{r}
+attach(actuals)
+```
+
+```{r}
+a=epi.ccc(actuals$actual,actuals$LINexp,
+          ci = "z-transform", conf.level = 0.95, 
+          rep.measure = FALSE)
+a$rho.c
+a$s.shift
+a$l.shift
+a$C.b
+```
+
+```{r}
+ag1b=data.frame(lab = paste("CCC: ",    round(a$rho.c[,1], digits = 2), " (95% CI ", 
+   round(a$rho.c[,2], digits = 2), " - ",
+   round(a$rho.c[,3], digits = 2), ")", sep = ""))
+```
+
+```{r}
+a2 <- lm(actuals$actual ~ actuals$LINexp)
+alpha <- summary(a2)$coefficients[1,1]
+beta <-  summary(a2)$coefficients[2,1]
+a3 <- data.frame(alpha, beta)
+```
+
+```{r}
+summary(a2)
+```
+
+```{r}
+library(ggplot2)
+E8=ggplot(data = actuals, aes(x = actuals$actual, y = actuals$LINexp)) +
+  theme_bw() +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_abline(data = a3, aes(intercept = alpha, slope = beta), 
+     linetype = "dashed") +
+  scale_x_continuous(limits = c(0,100), name = "") +
+  scale_y_continuous(limits = c(0,100), name = "Estimated (%)")+theme(axis.text.x = element_text(angle = 90,size = 15))+
+  theme(axis.text.y = element_text(angle = 0,size = 15))+
+  geom_text(data = ag1b, x = 3, y = 4, label = ag1b$lab) + 
+  coord_fixed(ratio = 1 / 1)+theme(panel.grid = element_blank())
+E8
+```
+
